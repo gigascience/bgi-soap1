@@ -1,24 +1,47 @@
 CC=	g++
 
-FLAGS= -O3 -static -DMAXGAP=3 -DMAXHITS=100 -DTHREAD #-g
-REF=  -DDB_CHR #  DB_SHORT  DB_HUGE DB_CHR DB_CONTIG
+FLAGS= -O3 -static -DMAXGAP=3 -DMAXHITS=10000 -DTHREAD #-g
+REF_CHR=  -DDB_CHR
+REF_CONTIG=	-DDB_CONTIG
+REF_SHORT=	-DDB_SHORT
+REF_HUGE=	-DDB_HUGE
 OLIGOLEN= -DREAD_60  #-DREAD_36 -DREAD_48
 
 LIBS=  
 THREAD=	-lpthread
 
-OBJS=	align.o dbseq.o main.o pairs.o param.o reads.o utilities.o
+SOURCE = align dbseq main pairs param reads utilities
+OBJS1= $(patsubst %,%.chr.o,$(SOURCE))
+OBJS2= $(patsubst %,%.contig.o,$(SOURCE))
+OBJS3= $(patsubst %,%.short.o,$(SOURCE))
+OBJS4= $(patsubst %,%.huge.o,$(SOURCE))
 
-all: soap soap_dealign
+all: soap soap.contig soap.short soap.huge soap_dealign
 
-%.o:%.cpp
-	$(CC) $(FLAGS) $(LIBS) $(REF) $(OLIGOLEN) -c $< -o $@
-soap: $(OBJS)
-	$(CC) $(FLAGS) $(LIBS) $(REF) $(OLIGOLEN) $^ -o $@ $(THREAD)
-soap_dealign: soap_dealign.o dealign.o param.o
-	$(CC) $(FLAGS) $(LIBS) $^ -o $@
+%.chr.o:%.cpp
+	$(CC) $(FLAGS) $(LIBS) $(REF_CHR) $(OLIGOLEN) -c $< -o $@
+soap: $(OBJS1)
+	$(CC) $(FLAGS) $(LIBS) $(REF_CHR) $(OLIGOLEN) $^ -o $@ $(THREAD)
+
+%.contig.o:%.cpp
+	$(CC) $(FLAGS) $(LIBS) $(REF_CONTIG) $(OLIGOLEN) -c $< -o $@
+soap.contig: $(OBJS2)
+	$(CC) $(FLAGS) $(LIBS) $(REF_CONTIG) $(OLIGOLEN) $^ -o $@ $(THREAD)
+
+%.short.o:%.cpp
+	$(CC) $(FLAGS) $(LIBS) $(REF_SHORT) $(OLIGOLEN) -c $< -o $@
+soap.short: $(OBJS3)
+	$(CC) $(FLAGS) $(LIBS) $(REF_SHORT) $(OLIGOLEN) $^ -o $@ $(THREAD)
 	
+%.huge.o:%.cpp
+	$(CC) $(FLAGS) $(LIBS) $(REF_HUGE) $(OLIGOLEN) -c $< -o $@
+soap.huge: $(OBJS4)
+	$(CC) $(FLAGS) $(LIBS) $(REF_HUGE) $(OLIGOLEN) $^ -o $@ $(THREAD)
+
+soap_dealign: soap_dealign.o dealign.o param.chr.o
+	$(CC) $(FLAGS) $(LIBS) $^ -o $@
+				
 clean:
-	rm -f *.o soap soap_dealign
+	rm -f *.o soap soap.contig soap.short soap.huge soap_dealign
 install:
-	cp soap soap_dealign ../bin
+	cp soap soap.contig soap.short soap.huge soap_dealign ../../ #../bin

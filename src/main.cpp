@@ -1,6 +1,7 @@
 #include<unistd.h>
 #include<cstdio>
 #include<iostream>
+#include<iomanip>
 #include<ostream>
 #include<fstream>
 #include<string>
@@ -24,18 +25,21 @@ string query_a_file;
 string query_b_file;
 string ref_file;
 string out_align_file;
+string out_align_file_unpair;
 
 ifstream fin_db;
 ifstream fin_a;
 ifstream fin_b;
 ofstream fout;
+ofstream fout_unpair;
 ReadClass read_a;
 ReadClass read_b;
 RefSeq ref;
-bit32_t QC_filtered=0;  //number of reads filter for low-quality
-bit32_t QC_filtered_pairs=0;
-bit32_t QC_filtered_a=0;
-bit32_t QC_filtered_b=0;
+
+bit32_t n_aligned=0;   //number of reads aligned
+bit32_t n_aligned_pairs=0;  //number of pairs aligned
+bit32_t n_aligned_a=0;  //number of a reads aligned
+bit32_t n_aligned_b=0;  //number of b reads aligned
 
 #ifdef THREAD
 pthread_mutex_t mutex_fin=PTHREAD_MUTEX_INITIALIZER;
@@ -64,7 +68,7 @@ void *t_SingleAlign(void *)
 		pthread_mutex_unlock(&mutex_fout);		
 	}
 	pthread_mutex_lock(&mutex_fout);
-	QC_filtered+=a.n_filtered;
+	n_aligned+=a.n_aligned;
 	pthread_mutex_unlock(&mutex_fout);
 };
 void Do_SingleAlign()
@@ -98,13 +102,14 @@ void *t_PairAlign(void *)
 		a.Do_Batch(ref);
 		pthread_mutex_lock(&mutex_fout);
 		fout<<a._str_align;
+		fout_unpair<<a._str_align_unpair;
 		cout<<cur_at<<" reads finished. "<<Cal_AllTime()<<" secs passed"<<endl;
 		pthread_mutex_unlock(&mutex_fout);		
 	}
 	pthread_mutex_lock(&mutex_fout);
-	QC_filtered_pairs+=a.n_filtered_pairs;
-	QC_filtered_a+=a.n_filtered_a;
-	QC_filtered_b+=a.n_filtered_b;
+	n_aligned_pairs+=a.n_aligned_pairs;
+	n_aligned_a+=a.n_aligned_a;
+	n_aligned_b+=a.n_aligned_b;
 	pthread_mutex_unlock(&mutex_fout);		
 };
 
@@ -184,7 +189,7 @@ void Do_SingleAlign()
 		fout<<a._str_align;
 		cout<<read_a._index<<" reads finished. "<<Cal_AllTime()<<" secs passed"<<endl;
 	}
-	QC_filtered=a.n_filtered;	
+	n_aligned=a.n_aligned;	
 }
 
 void Do_PairAlign()
@@ -201,12 +206,13 @@ void Do_PairAlign()
 			break;
 		a.ImportBatchReads(n1, read_a.mreads, read_b.mreads);
 		a.Do_Batch(ref);
-		fout<<a._str_align;		
+		fout<<a._str_align;
+		fout_unpair<<a._str_align_unpair;
 		cout<<read_a._index<<" reads finished. "<<Cal_AllTime()<<" secs passed"<<endl;
 	}
-	QC_filtered_pairs=a.n_filtered_pairs;
-	QC_filtered_a=a.n_filtered_a;
-	QC_filtered_b=a.n_filtered_b;	
+	n_aligned_pairs=a.n_aligned_pairs;
+	n_aligned_a=a.n_aligned_a;
+	n_aligned_b=a.n_aligned_b;	
 }
 
 void Do_Formatdb()
@@ -222,10 +228,11 @@ void usage(void)
 	cout<<"Usage:	soap [options]\n"
 		<<"	-a	<string>	query a file, *.fq or *.fa format\n"
 		<<"	-d	<string>	reference sequences file, *.fa format\n"
-		<<"	-o	<string>	output align file\n"
+		<<"	-o	<string>	output alignment file\n"
 		<<"	-s	<int>	seed size, default="<<param.seed_size<<"\n"
 		<<"	-v	<int>	maximum number of snps allowed on a read, <="<<MAXSNPS<<". default="<<param.max_snp_num<<"bp\n"
 		<<"	-g	<int>	maximum gap size allowed on a read, default="<<param.max_gap_size<<"bp\n"
+		<<"	-w	<int>	maximum number of equal best hits, smaller will be faster, <="<<MAXHITS<<"\n"
 		<<"	-e	<int>	will not allow gap exist inside n-bp edge of a read, default="<<param.gap_edge<<"bp\n"
 		<<"	-q	<int>	quality threshold of snp, 0-40, default="<<int(param.qual_threshold)<<"\n"
 		<<"	-z	<char>	initial quality, default="<<param.zero_qual<<"\n"
@@ -246,19 +253,20 @@ void usage(void)
 #ifdef THREAD
 		<<"	-p	<int>	number of processors, default="<<param.num_procs<<"\n"
 #endif	
-		<<"	-h	help\n\n"
-		<<"Options for pair-end alignment:\n"
+		<<"\nOptions for pair-end alignment:\n"
 		<<"	-b	<string>	query b file\n"
 		<<"	-m	<int>	minimal insert size of pair-end, default="<<param.min_insert<<"\n"
 		<<"	-x	<int>	maximal insert size of pair-end, default="<<param.max_insert<<"\n"
-		<<"Options for mRNA tag alignment:\n"
+		<<"	-2	<string>	output unpaired alignment file\n"
+		<<"\nOptions for mRNA tag alignment:\n"
 		<<"	-T	<int>	type of tag, 0:DpnII, GATC+16; 1:NlaIII, CATG+17. default="<<param.tag_type<<"\n"
-		<<"Options for miRNA alignment:\n"
+		<<"\nOptions for miRNA alignment:\n"
 		<<"	-A	<string>	3-end adapter sequence, default="<<param.adapter<<"\n"
 		<<"	-S	<int>	number of mismatch allowed in adapter, default="<<param.admis<<"\n"
 		<<"	-M	<int>	minimum length of miRNA, default="<<param.mirna_min<<"\n"
 		<<"	-X	<int>	maximum length of miRNA, default="<<param.mirna_max<<"\n"
-		<<"Batch command: pessat -d <string> <parameter file>\n\n"
+		<<"	-h	help\n\n"
+		<<"Batch command: soap -d <string> <parameter file>\n\n"
 		<<"Note: all numbers are counted from 1\n"
 		<<"seed_size*2+3<=min_read_size, AND seed_size<=12\n"
 		<<"format of alignment:\n"
@@ -284,10 +292,12 @@ int mGetOptions(int rgc, char *rgv[])
 			case 'd': ref_file = rgv[++i]; break;
 			case 's': param.SetSeedSize(atoi(rgv[++i])); break;
 			case 'o': out_align_file = rgv[++i]; break;
+			case '2': out_align_file_unpair = rgv[++i]; break;
 			case 'm': param.min_insert = atoi(rgv[++i]); break;
 			case 'x': param.max_insert = atoi(rgv[++i]); break;
 			case 'v': param.max_snp_num = atoi(rgv[++i]); if(param.max_snp_num>MAXSNPS) usage(); break;
 			case 'g': param.max_gap_size = atoi(rgv[++i]); break;
+			case 'w': param.max_num_hits = atoi(rgv[++i]); if(param.max_num_hits>MAXHITS) usage(); break;
 			case 'e': param.gap_edge = atoi(rgv[++i]); break;
 			case 'q': param.qual_threshold = atoi(rgv[++i]); break;
 			case 'c': param.trim_lowQ=atoi(rgv[++i]); break;
@@ -330,16 +340,23 @@ void RunProcess(void)
 			cerr<<"failed to open file: "<<out_align_file<<endl;
 			exit(1);
 		}
+		fout_unpair.open(out_align_file_unpair.c_str());
+		if(!fout_unpair) {
+			cerr<<"failed to open file: "<<out_align_file_unpair<<endl;
+			exit(1);
+		}
+		n_aligned_pairs=n_aligned_a=n_aligned_b=0;
 		read_a.InitialIndex();
 		read_b.InitialIndex();
 		Do_PairAlign();
 		fin_a.close();
 		fin_b.close();
 		fout.close();
-		cout<<"Total number of filtered low-quality reads: \n"
-			<<"pairs:    "<<QC_filtered_pairs<<"\n"
-			<<"single a: "<<QC_filtered_a<<"\n"
-			<<"single b: "<<QC_filtered_b<<"\n";
+		fout_unpair.close();
+		cout<<"Total number of aligned reads: \n"
+			<<"pairs:  "<<n_aligned_pairs<<" ("<<setprecision(2)<<100.0*n_aligned_pairs/read_a._index<<"%)\n"
+			<<"a:      "<<n_aligned_a<<" ("<<setprecision(2)<<100.0*n_aligned_a/read_a._index<<"%)\n"
+			<<"b:      "<<n_aligned_b<<" ("<<setprecision(2)<<100.0*n_aligned_b/read_b._index<<"%)\n";
 	}	
 	//single-read alignment
 	else
@@ -363,11 +380,13 @@ void RunProcess(void)
 			cerr<<"failed to open file: "<<out_align_file<<endl;
 			exit(1);
 		}
+		n_aligned=0;
 		read_a.InitialIndex();
 		Do_SingleAlign();
 		fin_a.close();
 		fout.close();
-		cout<<"Total number of filtered low-quality reads: "<<QC_filtered<<"\n";
+		cout<<"Total number of aligned reads: "<<n_aligned<<" ("<<setprecision(2)
+		<<100.0*n_aligned/read_a._index<<"%)\n";
 	}
 
 	cout<<"Done.\n";

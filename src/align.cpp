@@ -20,7 +20,7 @@ SingleAlign::SingleAlign()
 		cerr<<"fatal error, set smaller max_snp_num. (<=MAXSNPS)\n";
 		exit(1);
 	}
-	n_filtered=0;
+	n_aligned=0;
 	//make seed profile
 	/*n=0: ab; 1: cd; 2: bc; 3: ac; 4: bd; 5: ad*/
 	/*
@@ -338,7 +338,7 @@ void SingleAlign::SnpAlign_0(RefSeq &ref)
 //			cout<<"hit:  "<<_hit.loc<<"  "<<w<<endl;
 			if(w >param.max_snp_num)
 				continue;
-			if(_cur_n_hit[w]>=MAXHITS) {
+			if(_cur_n_hit[w]>=param.max_num_hits) {
 				if(w==0)
 					break;
 				else
@@ -373,7 +373,7 @@ void SingleAlign::SnpAlign_0(RefSeq &ref)
 //			cout<<"hit:  "<<_hit.loc<<"  "<<w<<endl;			
 			if(w >param.max_snp_num)
 				continue;
-			if(_cur_n_chit[w]>=MAXHITS) {
+			if(_cur_n_chit[w]>=param.max_num_hits) {
 				if(w==0)
 					break;
 				else
@@ -385,7 +385,14 @@ void SingleAlign::SnpAlign_0(RefSeq &ref)
 	}
 	}
 }
-
+void SingleAlign::SortExactHits(void)
+{
+	sort(hits[0], hits[0]+_cur_n_hit[0], HitComp);
+}
+void SingleAlign::SortExactcHits(void)
+{
+	sort(chits[0], chits[0]+_cur_n_chit[0], HitComp);
+}
 //for seed cd
 void SingleAlign::SnpAlign_1(RefSeq &ref)
 {
@@ -418,7 +425,7 @@ void SingleAlign::SnpAlign_1(RefSeq &ref)
 
 			if((w>param.max_snp_num)||(0==w))
 				continue;	
-			if(_cur_n_hit[w]>=MAXHITS)
+			if(_cur_n_hit[w]>=param.max_num_hits)
 				continue;
 			if(_tmp_n_hit[w] &&HitExist(_hit, hits[w], hits[w]+_tmp_n_hit[w]))
 				continue;
@@ -456,7 +463,7 @@ void SingleAlign::SnpAlign_1(RefSeq &ref)
 
 			if((w>param.max_snp_num) ||(0==w))
 				continue;				
-			if(_cur_n_chit[w]>=MAXHITS)
+			if(_cur_n_chit[w]>=param.max_num_hits)
 				continue;
 			if(_tmp_n_hit[w] &&HitExist(_hit, chits[w], chits[w]+_tmp_n_hit[w]))
 				continue;	
@@ -513,7 +520,7 @@ void SingleAlign::SnpAlign_2(RefSeq &ref)
 
 				if((w>param.max_snp_num) ||(w<=1))
 					continue;				
-				if(_cur_n_hit[w]>=MAXHITS)
+				if(_cur_n_hit[w]>=param.max_num_hits)
 					continue;
 				if(_tmp_n_hit[w] &&HitExist(_hit, hits[w], hits[w]+_tmp_n_hit[w]))
 					continue;	
@@ -563,7 +570,7 @@ void SingleAlign::SnpAlign_2(RefSeq &ref)
 
 				if((w>param.max_snp_num) ||(w<=1))
 					continue;				
-				if(_cur_n_chit[w]>=MAXHITS)
+				if(_cur_n_chit[w]>=param.max_num_hits)
 					continue;
 				if(_tmp_n_hit[w] &&HitExist(_hit, chits[w], chits[w]+_tmp_n_hit[w]))
 					continue;		
@@ -637,7 +644,7 @@ int SingleAlign::SnpAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					}
 				}
 				if((*_refid!=id)||(*_refloc<_lb)||(*_refloc>_rb))
-					break;	
+					continue;	
 				for(; (*_refid==id)&&(_refid<final_end_id)&&(*_refloc<=_rb); _refid++,_refloc++) {	
 					_hit.chr=*_refid;
 					_hit.loc=(*_refloc<<2)-profile[k][i].a+i;
@@ -651,13 +658,7 @@ int SingleAlign::SnpAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 						continue;			
 					_hit.z=d;
 					bound_hits[w][_cur_n_boundhit[w]++]=_hit;
-				}
-				if(k>=1) { //for pair-end alignment, the expected hit here will have at least 1 mismatch
-					if(_cur_n_boundhit[0])
-						return 0;
-					else if(_cur_n_boundhit[1])
-						return 1;
-				}				
+				}	
 			}
 		}
 	}
@@ -713,7 +714,7 @@ int SingleAlign::SnpAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					}			
 				}
 				if((*_refid!=id)||(*_refloc<_lb)||(*_refloc>_rb))
-					break;	
+					continue;	
 				for(; (*_refid==id)&&(_refid<final_end_id)&&(*_refloc<=_rb); _refid++,_refloc++) {		
 					_hit.chr=*_refid;
 					_hit.loc=(*_refloc<<2)-profile[k][i].a+i;
@@ -728,16 +729,10 @@ int SingleAlign::SnpAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					_hit.z=d;
 					bound_hits[w][_cur_n_boundhit[w]++]=_hit;
 				}
-				if(k>=1) {
-					if(_cur_n_boundhit[0])
-						return 0;
-					else if(_cur_n_boundhit[1])
-						return 1;
-				}
 			}
 		}
 	}	
-	for(i=2; i<=param.max_snp_num; i++) {
+	for(i=0; i<=param.max_snp_num; i++) {
 		if(_cur_n_boundhit[i])
 			return i;
 	}
@@ -874,7 +869,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 				k=_hit.loc%12;
 				h=_hit.loc/12;				
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_gaphit >= MAXHITS)
+				if(_cur_n_gaphit >= param.max_num_hits)
 					break;				
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge-g; j++) {
 					DelBp(bseq[k], reg[k], j+k, g);
@@ -900,7 +895,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 					break;
 				}
 				//deletion on read, so try to insert bps in read and align
-				if(_cur_n_gaphit >= MAXHITS)
+				if(_cur_n_gaphit >= param.max_num_hits)
 					break;					
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge; j++) {
 					InsBp(bseq[k], reg[k], j+k, g);
@@ -931,7 +926,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 			//right part of seeds
 			for(m=0, _tid=_id1[1][i], _tp=_loc1[1][i]; m<_num1[1][i]; m++, _tid++, _tp++) {		
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_gaphit >= MAXHITS)
+				if(_cur_n_gaphit >= param.max_num_hits)
 					break;
 				_hit.chr=*_tid;
 				_hit.loc=(*_tp<<2)-(_pread->seq.size()-param.seed_size-i-g);
@@ -963,7 +958,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 					break;
 				}
 				//deletion on read
-				if(_cur_n_gaphit >= MAXHITS)
+				if(_cur_n_gaphit >= param.max_num_hits)
 					break;	
 				_hit.chr=*_tid;
 				_hit.loc=(*_tp<<2)-(_pread->seq.size()-param.seed_size-i+g);
@@ -1012,7 +1007,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 				k=_hit.loc%12;
 				h=_hit.loc/12;				
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_cgaphit >= MAXHITS)
+				if(_cur_n_cgaphit >= param.max_num_hits)
 					break;				
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge-g; j++) {
 					DelBp(cbseq[k], creg[k], j+k, g);
@@ -1038,7 +1033,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 					break;
 				}
 				//deletion on read, so try to insert bps in read and align
-				if(_cur_n_cgaphit >= MAXHITS)
+				if(_cur_n_cgaphit >= param.max_num_hits)
 					break;					
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge; j++) {
 					InsBp(cbseq[k], creg[k], j+k, g);
@@ -1069,7 +1064,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 			//right part of seeds
 			for(m=0, _tid=_id2[1][i], _tp=_loc2[1][i]; m<_num2[1][i]; m++, _tid++, _tp++) {		
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_cgaphit >= MAXHITS)
+				if(_cur_n_cgaphit >= param.max_num_hits)
 					break;
 				_hit.chr=*_tid;
 				_hit.loc=(*_tp<<2)-(_pread->seq.size()-param.seed_size-i-g);
@@ -1101,7 +1096,7 @@ int SingleAlign::GapAlign(RefSeq &ref)
 					break;
 				}
 				//deletion on read
-				if(_cur_n_cgaphit >= MAXHITS)
+				if(_cur_n_cgaphit >= param.max_num_hits)
 					break;	
 				_hit.chr=*_tid;
 				_hit.loc=(*_tp<<2)-(_pread->seq.size()-param.seed_size-i+g);
@@ -1263,7 +1258,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 				k=_hit.loc%12;
 				h=_hit.loc/12;				
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_gaphit >= MAXHITS)
+				if(_cur_n_gaphit >= param.max_num_hits)
 					break;				
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge-g; j++) {
 					DelBp(bseq[k], reg[k], j+k, g);
@@ -1289,7 +1284,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					break;
 				}
 				//deletion on read, so try to insert bps in read and align
-				if(_cur_n_boundgaphit >= MAXHITS)
+				if(_cur_n_boundgaphit >= param.max_num_hits)
 					break;					
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge; j++) {
 					InsBp(bseq[k], reg[k], j+k, g);
@@ -1322,7 +1317,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 			_refloc=_loc1[1][i];
 			for(x=0; (x<_num1[1][i])&&(*_refid==id)&&(*_refloc<=_rb); _refid++,_refloc++,x++) {
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_boundgaphit >= MAXHITS)
+				if(_cur_n_boundgaphit >= param.max_num_hits)
 					break;
 				_hit.chr=*_refid;
 				_hit.loc=(*_refloc<<2)-(_pread->seq.size()-param.seed_size-i-g);
@@ -1354,7 +1349,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					break;
 				}
 				//deletion on read
-				if(_cur_n_gaphit >= MAXHITS)
+				if(_cur_n_gaphit >= param.max_num_hits)
 					break;	
 				_hit.chr=*_refid;
 				_hit.loc=(*_refloc<<2)-(_pread->seq.size()-param.seed_size-i+g);
@@ -1491,7 +1486,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 				k=_hit.loc%12;
 				h=_hit.loc/12;				
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_boundgaphit >= MAXHITS)
+				if(_cur_n_boundgaphit >= param.max_num_hits)
 					break;				
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge-g; j++) {
 					DelBp(cbseq[k], creg[k], j+k, g);
@@ -1517,7 +1512,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					break;
 				}
 				//deletion on read, so try to insert bps in read and align
-				if(_cur_n_boundgaphit >= MAXHITS)
+				if(_cur_n_boundgaphit >= param.max_num_hits)
 					break;					
 				for(j=i+param.seed_size; j<=_pread->seq.size()-param.gap_edge; j++) {
 					InsBp(cbseq[k], creg[k], j+k, g);
@@ -1550,7 +1545,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 			_refloc=_loc2[1][i];
 			for(x=0; (x<_num2[1][i])&&(*_refid==id)&&(*_refloc<=_rb); _refid++,_refloc++,x++) {	
 				//insertion on read, so try to delete the bps and align
-				if(_cur_n_boundgaphit >= MAXHITS)
+				if(_cur_n_boundgaphit >= param.max_num_hits)
 					break;
 				_hit.chr=*_refid;
 				_hit.loc=(*_refloc<<2)-(_pread->seq.size()-param.seed_size-i-g);
@@ -1582,7 +1577,7 @@ int SingleAlign::GapAlign_range(bool chain, ref_id_t id, ref_loc_t left_end, ref
 					break;
 				}
 				//deletion on read
-				if(_cur_n_boundgaphit >= MAXHITS)
+				if(_cur_n_boundgaphit >= param.max_num_hits)
 					break;	
 				_hit.chr=*_refid;
 				_hit.loc=(*_refloc<<2)-(_pread->seq.size()-param.seed_size-i+g);
@@ -1663,7 +1658,6 @@ int SingleAlign::RunAlign(RefSeq &ref)
 int SingleAlign::FilterReads()
 {
 	if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {  //filter if too many 'N's
-		n_filtered++;
 		return 1;
 	}
 	return 0;
@@ -1695,11 +1689,12 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 			_pread->seq.resize(param.tag_remain);
 			_pread->qual.resize(param.tag_remain);
 			if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-				n_filtered++;
 				continue;
 			}
-			if(RunAlign(ref))
-				StringAlign(ref, _str_align);			
+			if(RunAlign(ref)) {
+				StringAlign(ref, _str_align);
+				n_aligned++;
+			}		
 		}
 		return;
 	}
@@ -1719,6 +1714,7 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 					_pread->qual.erase(i);
 					if((CountNs()<=param.max_ns)&&RunAlign(ref)) {
 						StringAlign(ref, _str_align);
+						n_aligned++;
 						break;
 					}
 				}
@@ -1730,11 +1726,12 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 	if(0==param.trim_lowQ) {
 		for(_pread=mreads.begin(), tt=0; tt<num_reads; _pread++, tt++) {
 			if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-				n_filtered++;
 				continue;
 			}
-			if(RunAlign(ref))
+			if(RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
+			}
 		}
 	}
 	else if(10>=param.trim_lowQ) {
@@ -1742,11 +1739,12 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 			_pread->seq.erase(_pread->seq.size()-param.trim_lowQ, param.trim_lowQ);
 			_pread->qual.erase(_pread->qual.size()-param.trim_lowQ, param.trim_lowQ);
 			if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-				n_filtered++;
 				continue;
 			}
-			if(RunAlign(ref))
+			if(RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
+			}
 		}
 	}
 	else if(20>=param.trim_lowQ) {
@@ -1756,27 +1754,30 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 			_pread->seq.erase(0,1);
 			_pread->qual.erase(0,1);
 			if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-				n_filtered++;
 				continue;
 			}
-			if(RunAlign(ref))
+			if(RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
+			}
 		}		
 	}
 	else if(30>=param.trim_lowQ) {
 		for(_pread=mreads.begin(), tt=0; tt<num_reads; _pread++, tt++) {
 			if((_pread->seq.size()>=param.min_read_size)&&(CountNs()<=param.max_ns)&&RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
 			}			
 			else {
 				_pread->seq.erase(_pread->seq.size()-(param.trim_lowQ-20), param.trim_lowQ-20);
 				_pread->qual.erase(_pread->qual.size()-(param.trim_lowQ-20), param.trim_lowQ-20);		
 				if((_pread->seq.size()>=param.min_read_size)||(CountNs()<=param.max_ns)) {
-					n_filtered++;
 					continue;
 				}
-				if(RunAlign(ref))
-					StringAlign(ref, _str_align);				
+				if(RunAlign(ref)) {
+					StringAlign(ref, _str_align);	
+					n_aligned++;
+				}			
 			}
 		}				
 	}
@@ -1784,6 +1785,7 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 		for(_pread=mreads.begin(), tt=0; tt<num_reads; _pread++, tt++) {
 			if((_pread->seq.size()>=param.min_read_size)&&(CountNs()<=param.max_ns)&&RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
 			}			
 			else {
 				_pread->seq.erase(_pread->seq.size()-(param.trim_lowQ-30), param.trim_lowQ-30);
@@ -1791,11 +1793,12 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 				_pread->seq.erase(0,1);
 				_pread->qual.erase(0,1);		
 				if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-					n_filtered++;
 					continue;
 				}
-				if(RunAlign(ref))
-					StringAlign(ref, _str_align);				
+				if(RunAlign(ref)) {
+					StringAlign(ref, _str_align);
+					n_aligned++;
+				}
 			}
 		}			
 	}
@@ -1803,6 +1806,7 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 		for(_pread=mreads.begin(), tt=0; tt<num_reads; _pread++, tt++) {
 			if((_pread->seq.size()>=param.min_read_size)&&(CountNs()<=param.max_ns)&&RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
 				continue;
 			}	
 			while(1) {
@@ -1812,11 +1816,9 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 					break;
 				if((CountNs()<=param.max_ns)&&RunAlign(ref)) {
 					StringAlign(ref, _str_align);
+					n_aligned++;
 					break;
 				}
-			}
-			if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-				n_filtered++;
 			}
 		}		
 	}
@@ -1824,6 +1826,7 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 		for(_pread=mreads.begin(), tt=0; tt<num_reads; _pread++, tt++) {
 			if((_pread->seq.size()>=param.min_read_size)&&(CountNs()<=param.max_ns)&&RunAlign(ref)) {
 				StringAlign(ref, _str_align);
+				n_aligned++;
 				continue;
 			}
 			_pread->seq.erase(0,1);
@@ -1835,11 +1838,9 @@ void SingleAlign::Do_Batch(RefSeq &ref)
 					break;
 				if((CountNs()<=param.max_ns)&&RunAlign(ref)) {
 					StringAlign(ref, _str_align);
+					n_aligned++;
 					break;
 				}
-			}
-			if((_pread->seq.size()<param.min_read_size)||(CountNs()>param.max_ns)) {
-				n_filtered++;
 			}
 		}		
 	}
@@ -1892,7 +1893,7 @@ void SingleAlign::StringAlign(RefSeq &ref, string &os)
 				else
 					s_OutHit(1, 1, ii, &chits[ii][0], 1, ref, os);
 		else if(1==param.report_repeat_hits) {  //randomly pick up one
-			sum=(_cur_n_hit[ii]+_cur_n_chit[ii]<MAXHITS? _cur_n_hit[ii]+_cur_n_chit[ii] :MAXHITS);
+			sum=(_cur_n_hit[ii]+_cur_n_chit[ii]<param.max_num_hits? _cur_n_hit[ii]+_cur_n_chit[ii] :param.max_num_hits);
 			jj=rand()%sum;
 			if(jj<_cur_n_hit[ii])
 				s_OutHit(0, sum, ii, &hits[ii][jj], 1, ref, os);
@@ -1900,7 +1901,7 @@ void SingleAlign::StringAlign(RefSeq &ref, string &os)
 				s_OutHit(1, sum, ii, &chits[ii][jj-_cur_n_hit[ii]], 1, ref, os);
 		}
 		else if(2==param.report_repeat_hits) {   //output all repeat hits
-			sum=(_cur_n_hit[ii]+_cur_n_chit[ii]<MAXHITS? _cur_n_hit[ii]+_cur_n_chit[ii] :MAXHITS);
+			sum=(_cur_n_hit[ii]+_cur_n_chit[ii]<param.max_num_hits? _cur_n_hit[ii]+_cur_n_chit[ii] :param.max_num_hits);
 			sort(hits[ii], hits[ii]+_cur_n_hit[ii], HitComp);	
 			for(j=0; j<_cur_n_hit[ii]; j++) {
 //				cout<<sum<<"  +  "<<(int)hits[ii][j].chr<<"  "<<hits[ii][j].loc<<"\n";
@@ -1924,7 +1925,7 @@ void SingleAlign::StringAlign(RefSeq &ref, string &os)
 			s_OutGapHit(1, 1, _gap_size, &cgaphits[0], ref, os);
 	}
 	else if(1==param.report_repeat_hits) {
-		sum=(_cur_n_gaphit+_cur_n_cgaphit<MAXHITS? _cur_n_gaphit+_cur_n_cgaphit :MAXHITS);
+		sum=(_cur_n_gaphit+_cur_n_cgaphit<param.max_num_hits? _cur_n_gaphit+_cur_n_cgaphit :param.max_num_hits);
 		jj=rand()%sum;
 		if(jj<_cur_n_gaphit)
 			s_OutGapHit(0, sum, _gap_size, &gaphits[jj], ref, os);
@@ -1932,7 +1933,7 @@ void SingleAlign::StringAlign(RefSeq &ref, string &os)
 			s_OutGapHit(1, sum, _gap_size, &cgaphits[jj-_cur_n_gaphit], ref, os);
 	}
 	else if(2==param.report_repeat_hits) {
-		sum=(_cur_n_gaphit+_cur_n_cgaphit<MAXHITS? _cur_n_gaphit+_cur_n_cgaphit :MAXHITS);
+		sum=(_cur_n_gaphit+_cur_n_cgaphit<param.max_num_hits? _cur_n_gaphit+_cur_n_cgaphit :param.max_num_hits);
 		sort(gaphits, gaphits+_cur_n_gaphit, HitComp);
 		for(j=0; j<_cur_n_gaphit; j++)
 			s_OutGapHit(0, sum, _gap_size, &gaphits[j], ref, os);

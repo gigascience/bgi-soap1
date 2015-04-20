@@ -1,3 +1,18 @@
+release: 1.04
+2008-01-26
+1. A bug fixed on pair-end alignment which will miss some paired hits.
+2. A bug fixed which will report some wrong pairs.
+
+release: 1.03
+2008-01-03
+1. Detected a small bug at reading reference.
+2. Debugged soap.short, soap.contig, soap.huge throughly.
+
+release: 1.02
+2007-12-23
+1. Reorganized makefile so that soap, soap.contig, soap.short and soap.huge will be generated on the same time;
+2. Revised pair-end alignment. Paired hits and unpaired hits are putting on two independent output files now;
+3. It will also iteratively trim low-quality 3'-end sequence for pair-end alignment to increase sensitivity.
 
 release: 1.01
 2007-11-23

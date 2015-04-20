@@ -65,6 +65,7 @@ public:
 	int max_snp_num;   //maximum number of snps on one read allowed
 	int max_gap_size;  //maximum gap size in a read
 	int gap_edge;   //will not allow gap exist at the boundaries of a read
+	int max_num_hits;   //maximum number of equal best hits, smaller will be faster
 	//report hits
 	int report_repeat_hits;   //how report repeat hits? 0: no, 1: pick one randomly, 2: report all
 	bool output_id;   //1: output read id, 1: out read index
