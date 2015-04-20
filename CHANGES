@@ -1,4 +1,10 @@
 
+release: 1.01
+2007-11-23
+1. Fixed a bug at removing equal hits;
+2. Fixed a bug of repetitive calculation at some extreme cases;
+3. Accelerate a little.
+
 release: 1.0
 Formal stable version.
 

@@ -71,22 +71,23 @@ void RefSeq::UnmaskRegion()
 {
 	Block b;
 	b.id=_count;
-	ref_loc_t p=0;
-	while(p<_length) {
-		b.end=b.begin=_seq.find_first_of(param.useful_nt, p);
-		p=_seq.find_first_of(param.nx_nt, b.begin);
-		if(p<_length) {
-			while((p<_length) && (p-b.end>param.read_size)) {  //allow single 'N' in a read-size region
-				b.end=p;
-				p++;
-				p=_seq.find_first_of(param.nx_nt, p);
-			}
-		}
+	bit32_t n=0;
+	b.begin=b.end=0;
+	while(b.end<_length) {
+		b.begin=_seq.find_first_of(param.useful_nt, b.end);
+		if(b.begin > _length)
+			break;
+		b.end=_seq.find_first_of(param.nx_nt, b.begin);
+		b.end = (b.end<=_length? b.end : _length);
+		if(b.end-b.begin <param.min_read_size)
+			continue;
+		if((n>0) && (b.begin < _blocks[n-1].end+param.read_size))
+			_blocks[n-1].end=b.end;
 		else {
-			b.end=_length;
-		}
-		if(b.end-b.begin >param.min_read_size)
 			_blocks.push_back(b);
+			n++;
+		}
+//		cout<<b.begin<<"  "<<b.end<<endl;
 	}
 }
 
@@ -98,6 +99,7 @@ void RefSeq::Run_ConvertBinseq(ifstream &fin)
 	total_num=sum_length=0;
 	while(LoadNextSeq(fin)) {
 		r.name=_name;
+//		cout<<r.name<<"  "<<_length<<endl;
 		r.size=_length;
 		title.push_back(r);
 		
@@ -108,8 +110,9 @@ void RefSeq::Run_ConvertBinseq(ifstream &fin)
 		_count++;
 		total_num++;
 		sum_length+=_length;
+//		cout<<r.size<<endl;
 	}
-	cout<<"total seq length: "<<sum_length<<endl;
+//	cout<<"total seq length: "<<sum_length<<endl;
 	_seq.clear(); //free ram
 }
 

@@ -13,19 +13,19 @@ struct bit24_t
 	unsigned a:24;
 };
 
-#ifdef DB_CHR  // seqs <256, length <4Gb*4
+#ifdef DB_CHR  // seqs <256, length <4Gb
 	typedef bit8_t ref_id_t;
 	typedef bit32_t ref_loc_t;
 #endif
-#ifdef DB_CONTIG // seqs <65K, length <4Gb*4
+#ifdef DB_CONTIG // seqs <65K, length <4Gb
 	typedef bit16_t ref_id_t;
 	typedef bit32_t ref_loc_t;
 #endif
-#ifdef DB_SHORT // seqs <4G, length <256*4
+#ifdef DB_SHORT // seqs <4G, length <65K
 	typedef bit32_t ref_id_t;
-	typedef bit8_t ref_loc_t;
+	typedef bit16_t ref_loc_t;
 #endif
-#ifdef DB_HUGE
+#ifdef DB_HUGE // seqs<4G, length <4G
 	typedef bit32_t ref_id_t;
 	typedef bit32_t ref_loc_t;
 #endif

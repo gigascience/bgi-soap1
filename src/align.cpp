@@ -280,7 +280,7 @@ bool HitExist(Hit &a, Hit *pl, Hit *pr)
 		if((pl->chr==a.chr)&&(pl->loc==a.loc))
 			return 1;
 		pmiddle=pl+(pr-pl)/2;
-		if((pmiddle->chr<=a.chr)||(pmiddle->loc<=a.loc))
+		if((pmiddle->chr <a.chr)||((pmiddle->chr==a.chr) &&(pmiddle->loc<=a.loc)))
 			pl=pmiddle;
 		else
 			pr=pmiddle;
@@ -327,6 +327,7 @@ void SingleAlign::SnpAlign_0(RefSeq &ref)
 		for(j=0; j!=m; j++) {
 			_hit.chr=_refid[j];
 			_hit.loc=(_refloc[j]<<2)-profile[0][i].a+i;
+//			cout<<"hit:  "<<_refloc[j]<<"   "<<j<<endl;
 			//special for mRNA tag alignment
 			if((param.tag_type!=-1) && (UnequalTag_0(_hit.chr, _hit.loc, ref)))
 				continue;
@@ -345,6 +346,7 @@ void SingleAlign::SnpAlign_0(RefSeq &ref)
 			}
 			_hit.z=d;
 			hits[w][_cur_n_hit[w]++]=_hit;
+//			cout<<"+  "<<(int)_hit.chr<<"  "<<_hit.loc<<endl;
 		}
 	}
 	}
@@ -513,7 +515,7 @@ void SingleAlign::SnpAlign_2(RefSeq &ref)
 					continue;				
 				if(_cur_n_hit[w]>=MAXHITS)
 					continue;
-				if(HitExist(_hit, hits[w], hits[w]+_tmp_n_hit[w]))
+				if(_tmp_n_hit[w] &&HitExist(_hit, hits[w], hits[w]+_tmp_n_hit[w]))
 					continue;	
 				_hit.z=d;
 				hits[w][_cur_n_hit[w]++]=_hit;
@@ -563,7 +565,7 @@ void SingleAlign::SnpAlign_2(RefSeq &ref)
 					continue;				
 				if(_cur_n_chit[w]>=MAXHITS)
 					continue;
-				if(HitExist(_hit, chits[w], chits[w]+_tmp_n_hit[w]))
+				if(_tmp_n_hit[w] &&HitExist(_hit, chits[w], chits[w]+_tmp_n_hit[w]))
 					continue;		
 				_hit.z=d;
 				chits[w][_cur_n_chit[w]++]=_hit;
@@ -1630,7 +1632,6 @@ void SingleAlign::ClearHits()
 }
 int SingleAlign::RunAlign(RefSeq &ref)
 {
-	cout<<_pread->name<<"  "<<_pread->seq<<endl;
 	ClearHits();
 	ConvertBinaySeq();
 	//ab, snp/exact alignment
@@ -1900,10 +1901,16 @@ void SingleAlign::StringAlign(RefSeq &ref, string &os)
 		}
 		else if(2==param.report_repeat_hits) {   //output all repeat hits
 			sum=(_cur_n_hit[ii]+_cur_n_chit[ii]<MAXHITS? _cur_n_hit[ii]+_cur_n_chit[ii] :MAXHITS);
-			for(j=0; j<_cur_n_hit[ii]; j++)
+			sort(hits[ii], hits[ii]+_cur_n_hit[ii], HitComp);	
+			for(j=0; j<_cur_n_hit[ii]; j++) {
+//				cout<<sum<<"  +  "<<(int)hits[ii][j].chr<<"  "<<hits[ii][j].loc<<"\n";
 				s_OutHit(0, sum, ii, &hits[ii][j], 1, ref, os);
-			for(j=0; j<_cur_n_chit[ii]; j++)
+			}
+			sort(chits[ii], chits[ii]+_cur_n_chit[ii], HitComp);
+			for(j=0; j<_cur_n_chit[ii]; j++) {
+//				cout<<sum<<"  -  "<<(int)chits[ii][j].chr<<"  "<<chits[ii][j].loc<<"\n";
 				s_OutHit(1, sum, ii, &chits[ii][j], 1, ref, os);
+			}
 		}
 		return;
 	}
@@ -1926,8 +1933,10 @@ void SingleAlign::StringAlign(RefSeq &ref, string &os)
 	}
 	else if(2==param.report_repeat_hits) {
 		sum=(_cur_n_gaphit+_cur_n_cgaphit<MAXHITS? _cur_n_gaphit+_cur_n_cgaphit :MAXHITS);
+		sort(gaphits, gaphits+_cur_n_gaphit, HitComp);
 		for(j=0; j<_cur_n_gaphit; j++)
 			s_OutGapHit(0, sum, _gap_size, &gaphits[j], ref, os);
+		sort(cgaphits, cgaphits+_cur_n_cgaphit, HitComp);
 		for(j=0; j<_cur_n_cgaphit; j++)
 			s_OutGapHit(1, sum, _gap_size, &cgaphits[j], ref, os);
 	}
