@@ -1,13 +1,16 @@
 #ifndef _ALIGN_H_
 #define _ALIGN_H_
 
+#include<cstdlib>
+#include<cstdio>
+#include<cmath>
 #include<vector>
 #include<string>
-#include<cstdio>
+#include<algorithm>
 
+#include "dbseq.h"
 #include "param.h"
 #include "reads.h"
-#include "dbseq.h"
 
 using namespace std;
 
@@ -180,6 +183,8 @@ protected:
 	ref_loc_t _lb, _rb;
 	
 	int _tmp_n_hit[MAXSNPS+1];
+	int _tmp_n_gaphit;
+	int _tmp_n_cgaphit;
 	
 	char _ch[1000];
 	vector<bit8_t> _sites;
@@ -240,9 +245,9 @@ inline void SingleAlign::GenerateSeeds_3(int n)
 	cseeds[n][0]=((_pro->s1>=24? cbseq[0][_pro->b1].a>>(_pro->s1-24): cbseq[0][_pro->b1].a<<(24-_pro->s1)|cbseq[0][_pro->b1+1].a>>_pro->s1)&param.half_seed_bits)<<param.seed_size
 		|(_pro->s2>=24? cbseq[0][_pro->b2].a>>(_pro->s2-24): cbseq[0][_pro->b2].a<<(24-_pro->s2)|cbseq[0][_pro->b2+1].a>>_pro->s2)&param.half_seed_bits;
 	_pro++;
-	seeds[n][1]=((_pro->s1>=24? bseq[0][_pro->b1].a>>(_pro->s1-24): bseq[1][_pro->b1].a<<(24-_pro->s1)|bseq[1][_pro->b1+1].a>>_pro->s1)&param.half_seed_bits)<<param.seed_size
+	seeds[n][1]=((_pro->s1>=24? bseq[1][_pro->b1].a>>(_pro->s1-24): bseq[1][_pro->b1].a<<(24-_pro->s1)|bseq[1][_pro->b1+1].a>>_pro->s1)&param.half_seed_bits)<<param.seed_size
 		|(_pro->s2>=24? bseq[1][_pro->b2].a>>(_pro->s2-24): bseq[1][_pro->b2].a<<(24-_pro->s2)|bseq[1][_pro->b2+1].a>>_pro->s2)&param.half_seed_bits;
-	cseeds[n][1]=((_pro->s1>=24? cbseq[0][_pro->b1].a>>(_pro->s1-24): cbseq[1][_pro->b1].a<<(24-_pro->s1)|cbseq[1][_pro->b1+1].a>>_pro->s1)&param.half_seed_bits)<<param.seed_size
+	cseeds[n][1]=((_pro->s1>=24? cbseq[1][_pro->b1].a>>(_pro->s1-24): cbseq[1][_pro->b1].a<<(24-_pro->s1)|cbseq[1][_pro->b1+1].a>>_pro->s1)&param.half_seed_bits)<<param.seed_size
 		|(_pro->s2>=24? cbseq[1][_pro->b2].a>>(_pro->s2-24): cbseq[1][_pro->b2].a<<(24-_pro->s2)|cbseq[1][_pro->b2+1].a>>_pro->s2)&param.half_seed_bits;
 	_pro++;
 	seeds[n][2]=((_pro->s1>=24? bseq[2][_pro->b1].a>>(_pro->s1-24): bseq[2][_pro->b1].a<<(24-_pro->s1)|bseq[2][_pro->b1+1].a>>_pro->s1)&param.half_seed_bits)<<param.seed_size

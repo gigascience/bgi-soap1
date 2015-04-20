@@ -1,3 +1,35 @@
+release: 1.11
+2008-7-17
+1.Fixed c stdlib error when compiler is gcc-4.3+.
+
+release: 1.10
+2008-04-21
+1.Fixed a bug in dealign.cpp.
+2.Updated the install function in makefile. 
+
+release: 1.09
+2008-04-09
+1.Fixed a bug which will miss some 2 snp reads.
+2.Fixed a bug which will miss some paired hits.
+
+release: 1.08
+2008-03-24
+1. Fixed a bug in "dealign.cpp".
+
+release: 1.07
+2008-03-18
+1. Added an option '-y' of pair-end alignment.
+
+release: 1.06
+2008-03-13
+1. Fixed a bug which will rarely overflow on alignment of mRNA tags;
+
+release: 1.05
+2008-02-27
+1. Fixed a bug which will report some false deletions;
+2. Revised the program interface to be more clear to users;
+3. More detailed description on Readme.
+
 release: 1.04
 2008-01-26
 1. A bug fixed on pair-end alignment which will miss some paired hits.

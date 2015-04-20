@@ -1,6 +1,3 @@
-#include<string.h>
-#include<stdio.h>
-#include<iomanip>
 #include "dealign.h"
 
 using namespace std;
@@ -259,7 +256,7 @@ void Dealign::OutDistri(char *out_file, vector<vector<bit16_t> > &c, int win, in
 	}
 	else {
 		for(p=c.begin(), k=0; p!=c.end(); p++,k++) {
-			fout<<">"<<_reftitle[k]<<"\t"<<p->size()<<endl;
+			fout<<">"<<_reftitle[k]<<"  "<<p->size()<<endl;
 			for(i=0; i!=p->size(); i++) {
 				if((*p)[i]>0)
 					fout<<(*p)[i]-1<<" ";
@@ -419,6 +416,24 @@ void Dealign::IniQC()
         2, look at all reads, trimmed first bp,
   zero_qual: zero quality, default='@' in solexa
 */
+void MutDe(string mismatch, int &offset, char &allele, int &qvalue){
+	unsigned int i = 3;
+	if (isdigit(mismatch[i+1])){
+		offset = (mismatch[i]-48) *10 + (mismatch[i+1]-48);
+		i += 2;
+		allele=mismatch[i++];
+	}
+	else if (!isdigit(mismatch[i+1])){
+		offset = (mismatch[i]-48);
+		i +=1;
+		allele=mismatch[i++];
+	}			
+	if (isdigit(mismatch[i])&&isdigit(mismatch[i+1]))
+		qvalue = (mismatch[i]-48)*10 + (mismatch[i+1] -48);
+	else
+		qvalue = (mismatch[i]-48);
+}
+
 void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 {
 	ifstream fin(align_file);
@@ -426,7 +441,7 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 		cerr<<"fatal error: failed to open align "<<align_file<<endl;
 		exit(1);
 	}
-	string id,seq,qual;
+	string id,seq,qual,mismatch;
 	int nhits,len,nmut,offset,qvalue;
 	char chain,allele;
 	char ch[1000];
@@ -449,7 +464,7 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
   		}			
 			if(len!=read_len)
 				continue;
-			if(chain='+') {
+			if('+'==chain) {
 				for(i=0; i!=seq.size(); i++) {
 					_ntfreq[i][n_char[seq[i]]]++;
 					qvalue=(qual[i]>=zero_qual? (qual[i]-zero_qual)/10:0);
@@ -457,7 +472,8 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 				}			
 				if(nmut) {
 					for(k=0; k!=nmut; k++) {
-						fin>>offset>>allele>>qvalue;
+						fin>>mismatch;
+						MutDe(mismatch, offset, allele, qvalue);
 						_mut[offset][n_char[allele]]++;
 						_mis_qual[offset][qvalue>=0? qvalue/10:0]++;
 					}
@@ -471,7 +487,8 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 				}
 				if(nmut) {
 					for(k=0; k!=nmut; k++) {
-						fin>>offset>>allele>>qvalue;
+						fin>>mismatch;
+						MutDe(mismatch, offset, allele, qvalue);
 						_mut[seq.size()-1-offset][nrev_char[allele]]++;
 						_mis_qual[seq.size()-1-offset][qvalue>=0? qvalue/10:0]++;
 					}
@@ -495,7 +512,7 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
   			fin.getline(ch, 1000);
   			continue;
   		}				
-			if(chain='+') {
+			if('+'==chain) {
 				for(i=0; i!=seq.size(); i++) {
 					_ntfreq[i][n_char[seq[i]]]++;
 					qvalue=(qual[i]>=zero_qual? (qual[i]-zero_qual)/10:0);
@@ -503,7 +520,8 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 				}
 				if(nmut) {
 					for(k=0; k!=nmut; k++) {
-						fin>>offset>>allele>>qvalue;
+						fin>>mismatch;
+						MutDe(mismatch, offset, allele, qvalue);
 						_mut[offset][n_char[allele]]++;
 						_mis_qual[offset][qvalue>=0? qvalue/10:0]++;
 					}
@@ -517,7 +535,8 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 				}
 				if(nmut) {
 					for(k=0; k!=nmut; k++) {
-						fin>>offset>>allele>>qvalue;
+						fin>>mismatch;
+						MutDe(mismatch, offset, allele, qvalue);
 						_mut[seq.size()-1-offset][nrev_char[allele]]++;
 						_mis_qual[seq.size()-1-offset][qvalue>=0? qvalue/10:0]++;
 					}
@@ -543,7 +562,7 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
   			continue;
   		}			
 			t=(seq.size()==read_len? 0:1);
-			if(chain='+') {
+			if('+'==chain) {
 				for(i=0; i!=seq.size(); i++) {
 					_ntfreq[i+t][n_char[seq[i]]]++;
 					qvalue=(qual[i]>=zero_qual? (qual[i]-zero_qual)/10:0);
@@ -551,7 +570,8 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 				}
 				if(nmut) {
 					for(k=0; k!=nmut; k++) {
-						fin>>offset>>allele>>qvalue;
+						fin>>mismatch;
+						MutDe(mismatch, offset, allele, qvalue);
 						_mut[offset+t][n_char[allele]]++;
 						_mis_qual[offset+t][qvalue>=0? qvalue/10:0]++;
 					}
@@ -565,7 +585,8 @@ void Dealign::QC(char *align_file, int read_len, int flag, char zero_qual)
 				}
 				if(nmut) {
 					for(k=0; k!=nmut; k++) {
-						fin>>offset>>allele>>qvalue;
+						fin>>mismatch;
+						MutDe(mismatch, offset, allele, qvalue);
 						_mut[seq.size()-1-offset+t][nrev_char[allele]]++;
 						_mis_qual[seq.size()-1-offset+t][qvalue>=0? qvalue/10:0]++;
 					}

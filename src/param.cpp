@@ -1,5 +1,4 @@
 #include "param.h"
-#include<iostream>
 
 using namespace std;
 
@@ -34,12 +33,13 @@ Param::Param()
 	max_ns = 5;
 	trim_lowQ=0;
 	
-	zero_qual= '!';
+	zero_qual= '@';
 	qual_threshold= 20;
 	default_qual=40;
 	
 	min_insert= 400;
 	max_insert= 600;
+	optimize_output_SV=1;
 	
 	seed_size= 10;
 	half_seed_size= seed_size>>1;	
@@ -49,7 +49,7 @@ Param::Param()
 	
 	max_snp_num = 2;
 	max_gap_size = 0;
-	gap_edge = 3;
+	gap_edge = 5;
 	max_num_hits = MAXHITS;
 	
 	//for mRNA tag alignment
@@ -64,8 +64,8 @@ Param::Param()
 	report_repeat_hits = 1;
 	output_id=1;
 
-	useful_nt="ACGT";
-	nx_nt="NX";
+	useful_nt="ACGTacgt";
+	nx_nt="NXnx";
 	
 	BuildMismatchTable();
 };
